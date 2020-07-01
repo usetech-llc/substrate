@@ -49,12 +49,14 @@ use sp_std::prelude::*;
 use codec::{Encode, Decode};
 use sp_runtime::{RuntimeDebug, traits::{Zero, One}};
 use frame_support::{
-	decl_module, decl_storage, decl_event, decl_error,
+	decl_module, decl_storage, decl_event, decl_error, decl_construct_runtime_args,
 	dispatch::{Dispatchable, DispatchError, DispatchResult, Parameter},
 	traits::{Get, schedule},
 	weights::{GetDispatchInfo, Weight},
 };
 use frame_system::{self as system, ensure_root};
+
+decl_construct_runtime_args!(Module, Call, Storage, Event<T>);
 
 /// Our pallet's configuration trait. All our types and constants go in here. If the
 /// pallet is dependent on specific other pallets, then their configuration traits
@@ -410,7 +412,7 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		impl_outer_event, impl_outer_origin, impl_outer_dispatch, parameter_types, assert_ok,
+		construct_runtime, parameter_types, assert_ok,
 		assert_err, traits::{OnInitialize, OnFinalize, Filter}, weights::constants::RocksDbWeight,
 	};
 	use sp_core::H256;
@@ -462,25 +464,20 @@ mod tests {
 		}
 	}
 
-	impl_outer_origin! {
-		pub enum Origin for Test where system = frame_system {}
-	}
+	type UncheckedExtrinsic = frame_system::MockUncheckedExtrinsic<Test>;
+	type Block = frame_system::MockBlock<Test>;
 
-	impl_outer_dispatch! {
-		pub enum Call for Test where origin: Origin {
-			system::System,
-			logger::Logger,
+	construct_runtime!(#[local_macro(scheduler)]
+		pub enum Test where
+			Block = Block,
+			NodeBlock = Block,
+			UncheckedExtrinsic = UncheckedExtrinsic,
+		{
+			System: system,
+			Logger: logger::{Module, Call, Storage, Event},
+			Scheduler: scheduler,
 		}
-	}
-
-	impl_outer_event! {
-		pub enum Event for Test {
-			system<T>,
-			logger,
-			scheduler<T>,
-		}
-	}
-
+	);
 	// Scheduler must dispatch with root and no filter, this tests base filter is indeed not used.
 	pub struct BaseFilter;
 	impl Filter<Call> for BaseFilter {
@@ -489,11 +486,6 @@ mod tests {
 		}
 	}
 
-	// For testing the pallet, we construct most of a mock runtime. This means
-	// first constructing a configuration type (`Test`) which `impl`s each of the
-	// configuration traits of pallets we want to use.
-	#[derive(Clone, Eq, PartialEq)]
-	pub struct Test;
 	parameter_types! {
 		pub const BlockHashCount: u64 = 250;
 		pub const MaximumBlockWeight: Weight = 2_000_000_000_000;
@@ -538,9 +530,6 @@ mod tests {
 		type Call = Call;
 		type MaximumWeight = MaximumSchedulerWeight;
 	}
-	type System = system::Module<Test>;
-	type Logger = logger::Module<Test>;
-	type Scheduler = Module<Test>;
 
 	// This function basically just builds a genesis storage key/value store according to
 	// our desired mockup.

@@ -53,12 +53,16 @@ use codec::{Encode, Decode};
 use sp_runtime::{DispatchResult, RuntimeDebug, traits::{
 	StaticLookup, Zero, AtLeast32BitUnsigned, MaybeSerializeDeserialize, Convert
 }};
-use frame_support::{decl_module, decl_event, decl_storage, decl_error, ensure};
+use frame_support::{
+	decl_module, decl_event, decl_storage, decl_error, ensure, decl_construct_runtime_args
+};
 use frame_support::traits::{
 	Currency, LockableCurrency, VestingSchedule, WithdrawReason, LockIdentifier,
 	ExistenceRequirement, Get
 };
 use frame_system::{self as system, ensure_signed, ensure_root};
+
+decl_construct_runtime_args!(Module, Call, Storage, Config<T>, Event<T>);
 
 mod benchmarking;
 
@@ -393,7 +397,7 @@ mod tests {
 
 	use std::cell::RefCell;
 	use frame_support::{
-		assert_ok, assert_noop, impl_outer_origin, parameter_types, weights::Weight,
+		assert_ok, assert_noop, construct_runtime, parameter_types, weights::Weight,
 		traits::Get
 	};
 	use sp_core::H256;
@@ -405,16 +409,23 @@ mod tests {
 		traits::{BlakeTwo256, IdentityLookup, Identity, BadOrigin},
 	};
 	use frame_system::RawOrigin;
+	use crate as pallet_vesting;
 
-	impl_outer_origin! {
-		pub enum Origin for Test  where system = frame_system {}
-	}
+	type UncheckedExtrinsic = frame_system::MockUncheckedExtrinsic<Test>;
+	type Block = frame_system::MockBlock<Test>;
 
-	// For testing the pallet, we construct most of a mock runtime. This means
-	// first constructing a configuration type (`Test`) which `impl`s each of the
-	// configuration traits of pallets we want to use.
-	#[derive(Clone, Eq, PartialEq)]
-	pub struct Test;
+	construct_runtime!(#[local_macro(pallet_vesting)]
+		pub enum Test where
+			Block = Block,
+			NodeBlock = Block,
+			UncheckedExtrinsic = UncheckedExtrinsic,
+		{
+			System: frame_system,
+			Balances: pallet_balances,
+			Vesting: pallet_vesting,
+		}
+	);
+
 	parameter_types! {
 		pub const BlockHashCount: u64 = 250;
 		pub const MaximumBlockWeight: Weight = 1024;
@@ -427,7 +438,7 @@ mod tests {
 		type Index = u64;
 		type BlockNumber = u64;
 		type Hash = H256;
-		type Call = ();
+		type Call = Call;
 		type Hashing = BlakeTwo256;
 		type AccountId = u64;
 		type Lookup = IdentityLookup<Self::AccountId>;
@@ -463,9 +474,6 @@ mod tests {
 		type BlockNumberToBalance = Identity;
 		type MinVestedTransfer = MinVestedTransfer;
 	}
-	type System = frame_system::Module<Test>;
-	type Balances = pallet_balances::Module<Test>;
-	type Vesting = Module<Test>;
 
 	thread_local! {
 		static EXISTENTIAL_DEPOSIT: RefCell<u64> = RefCell::new(0);
@@ -502,7 +510,7 @@ mod tests {
 					(12, 10 * self.existential_deposit)
 				],
 			}.assimilate_storage(&mut t).unwrap();
-			GenesisConfig::<Test> {
+			pallet_vesting::GenesisConfig::<Test> {
 				vesting: vec![
 					(1, 0, 10, 5 * self.existential_deposit),
 					(2, 10, 20, 0),

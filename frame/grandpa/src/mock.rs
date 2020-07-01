@@ -21,12 +21,11 @@
 
 use crate::{
 	equivocation::ValidateEquivocationReport, AuthorityId, AuthorityList, Call as GrandpaCall,
-	ConsensusLog, Module, Trait,
+	ConsensusLog, Trait,
 };
-use ::grandpa as finality_grandpa;
 use codec::Encode;
 use frame_support::{
-	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types,
+	construct_runtime, parameter_types,
 	traits::{KeyOwnerProofSystem, OnFinalize, OnInitialize},
 	weights::{DispatchInfo, Weight},
 };
@@ -51,40 +50,37 @@ use sp_staking::SessionIndex;
 use frame_system as system;
 use pallet_balances as balances;
 use pallet_offences as offences;
+use pallet_session::historical as historical;
 use pallet_session as session;
 use pallet_staking as staking;
 use pallet_timestamp as timestamp;
+use crate as grandpa;
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::MockBlock<Test>;
 
-impl_outer_dispatch! {
-	pub enum Call for Test where origin: Origin {
-		grandpa::Grandpa,
-		staking::Staking,
+construct_runtime!(#[local_macro(grandpa)]
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: system,
+		Timestamp: timestamp,
+		Balances: balances,
+		Grandpa: grandpa,
+		Offences: offences,
+		Historical: historical::{Module, Call, Storage},
+		Session: session,
+		Staking: staking,
 	}
-}
+);
 
 impl_opaque_keys! {
 	pub struct TestSessionKeys {
 		pub grandpa_authority: super::Module<Test>,
 	}
 }
-
-impl_outer_event! {
-	pub enum TestEvent for Test {
-		system<T>,
-		balances<T>,
-		grandpa,
-		offences,
-		session,
-		staking<T>,
-	}
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -104,7 +100,7 @@ impl frame_system::Trait for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = TestEvent;
+	type Event = Event;
 	type BlockHashCount = BlockHashCount;
 	type MaximumBlockWeight = MaximumBlockWeight;
 	type DbWeight = ();
@@ -136,7 +132,7 @@ parameter_types! {
 
 /// Custom `SessionHandler` since we use `TestSessionKeys` as `Keys`.
 impl session::Trait for Test {
-	type Event = TestEvent;
+	type Event = Event;
 	type ValidatorId = u64;
 	type ValidatorIdOf = staking::StashOf<Self>;
 	type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
@@ -159,7 +155,7 @@ parameter_types! {
 impl balances::Trait for Test {
 	type Balance = u128;
 	type DustRemoval = ();
-	type Event = TestEvent;
+	type Event = Event;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 }
@@ -213,7 +209,7 @@ impl Convert<u128, u64> for CurrencyToVoteHandler {
 impl staking::Trait for Test {
 	type RewardRemainder = ();
 	type CurrencyToVote = CurrencyToVoteHandler;
-	type Event = TestEvent;
+	type Event = Event;
 	type Currency = Balances;
 	type Slash = ();
 	type Reward = ();
@@ -238,14 +234,14 @@ parameter_types! {
 }
 
 impl offences::Trait for Test {
-	type Event = TestEvent;
+	type Event = Event;
 	type IdentificationTuple = session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = Staking;
 	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
 impl Trait for Test {
-	type Event = TestEvent;
+	type Event = Event;
 	type Call = Call;
 
 	type KeyOwnerProofSystem = Historical;
@@ -319,19 +315,6 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Public = reporting_keys::ReporterId;
 	type Signature = sp_core::ed25519::Signature;
 }
-
-mod grandpa {
-	pub use crate::Event;
-}
-
-pub type Balances = pallet_balances::Module<Test>;
-pub type Historical = pallet_session::historical::Module<Test>;
-pub type Offences = pallet_offences::Module<Test>;
-pub type Session = pallet_session::Module<Test>;
-pub type Staking = pallet_staking::Module<Test>;
-pub type System = frame_system::Module<Test>;
-pub type Timestamp = pallet_timestamp::Module<Test>;
-pub type Grandpa = Module<Test>;
 
 pub fn grandpa_log(log: ConsensusLog<u64>) -> DigestItem<H256> {
 	DigestItem::Consensus(GRANDPA_ENGINE_ID, log.encode())

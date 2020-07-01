@@ -90,7 +90,7 @@ use sp_runtime::{
 	traits::{Zero, StaticLookup, Convert},
 };
 use frame_support::{
-	decl_storage, decl_event, ensure, decl_module, decl_error,
+	decl_storage, decl_event, ensure, decl_module, decl_error, decl_construct_runtime_args,
 	weights::{Weight, constants::{WEIGHT_PER_MICROS, WEIGHT_PER_NANOS}},
 	storage::{StorageMap, IterableStorageMap},
 	dispatch::{DispatchResultWithPostInfo, WithPostDispatchInfo},
@@ -102,6 +102,8 @@ use frame_support::{
 };
 use sp_npos_elections::{build_support_map, ExtendedBalance, VoteWeight, ElectionResult};
 use frame_system::{self as system, ensure_signed, ensure_root};
+
+decl_construct_runtime_args!(Module, Call, Storage, Config<T>, Event<T>);
 
 mod benchmarking;
 
@@ -1216,18 +1218,18 @@ mod tests {
 		type BadReport = ();
 	}
 
-	pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
-	pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, Call, ()>;
+	type UncheckedExtrinsic = frame_system::MockUncheckedExtrinsic<Test>;
+	type Block = frame_system::MockBlock<Test>;
 
-	frame_support::construct_runtime!(
+	frame_support::construct_runtime!(#[local_macro(elections_phragmen)]
 		pub enum Test where
 			Block = Block,
 			NodeBlock = Block,
 			UncheckedExtrinsic = UncheckedExtrinsic
 		{
-			System: system::{Module, Call, Event<T>},
-			Balances: pallet_balances::{Module, Call, Event<T>, Config<T>},
-			Elections: elections_phragmen::{Module, Call, Event<T>, Config<T>},
+			System: system,
+			Balances: pallet_balances,
+			Elections: elections_phragmen,
 		}
 	);
 
@@ -1289,6 +1291,7 @@ mod tests {
 		pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
 			self.set_constants();
 			let mut ext: sp_io::TestExternalities = GenesisConfig {
+				system: None,
 				pallet_balances: Some(pallet_balances::GenesisConfig::<Test>{
 					balances: vec![
 						(1, 10 * self.balance_factor),

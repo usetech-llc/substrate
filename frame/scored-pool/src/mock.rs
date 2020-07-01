@@ -20,7 +20,7 @@
 use super::*;
 
 use std::cell::RefCell;
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight, ord_parameter_types};
+use frame_support::{parameter_types, weights::Weight, ord_parameter_types, construct_runtime};
 use sp_core::H256;
 // The testing primitives are very useful for avoiding having to work with signatures
 // or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
@@ -28,16 +28,23 @@ use sp_runtime::{
 	Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header,
 };
 use frame_system::EnsureSignedBy;
+use crate as pallet_scored_pool;
 
-impl_outer_origin! {
-	pub enum Origin for Test  where system = frame_system {}
-}
+type UncheckedExtrinsic = frame_system::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::MockBlock<Test>;
 
-// For testing the pallet, we construct most of a mock runtime. This means
-// first constructing a configuration type (`Test`) which `impl`s each of the
-// configuration traits of pallets we want to use.
-#[derive(Clone, Eq, PartialEq)]
-pub struct Test;
+construct_runtime!(#[local_macro(pallet_scored_pool)]
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system,
+		Balances: pallet_balances,
+		ScoredPool: pallet_scored_pool,
+	}
+);
+
 parameter_types! {
 	pub const CandidateDeposit: u64 = 25;
 	pub const Period: u64 = 4;
@@ -60,7 +67,7 @@ impl frame_system::Trait for Test {
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
-	type Call = ();
+	type Call = Call;
 	type Hashing = BlakeTwo256;
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
@@ -128,9 +135,6 @@ impl Trait for Test {
 	type ScoreOrigin = EnsureSignedBy<ScoreOrigin, u64>;
 }
 
-type System = frame_system::Module<Test>;
-type Balances = pallet_balances::Module<Test>;
-
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -147,7 +151,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			(99, 1),
 		],
 	}.assimilate_storage(&mut t).unwrap();
-	GenesisConfig::<Test>{
+	pallet_scored_pool::GenesisConfig::<Test>{
 		pool: vec![
 			(5, None),
 			(10, Some(1)),

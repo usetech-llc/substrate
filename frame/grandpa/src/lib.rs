@@ -41,7 +41,7 @@ use fg_primitives::{
 };
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, storage, traits::KeyOwnerProofSystem,
-	Parameter,
+	Parameter, decl_construct_runtime_args,
 };
 use frame_system::{self as system, ensure_signed, DigestOf};
 use sp_runtime::{
@@ -50,6 +50,8 @@ use sp_runtime::{
 	DispatchResult, KeyTypeId,
 };
 use sp_staking::SessionIndex;
+
+decl_construct_runtime_args!(Module, Call, Storage, Config, Event);
 
 mod equivocation;
 mod mock;
