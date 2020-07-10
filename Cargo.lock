@@ -517,6 +517,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 
 [[package]]
+name = "byteio"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1628aaab25b23803453d80873600ebffe6326577c1db81f5a3d123290e6287af"
+
+[[package]]
 name = "byteorder"
 version = "1.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3385,6 +3391,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nano-leb128"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f778a7433cee0fc957551fe7e8bb7abb5caa7ea5d5ed52f9fabb63873415728e"
+dependencies = [
+ "byteio",
+]
+
+[[package]]
 name = "net2"
 version = "0.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4153,6 +4168,7 @@ version = "2.0.0-rc4"
 dependencies = [
  "assert_matches",
  "bitflags",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex-literal",
@@ -4172,6 +4188,7 @@ dependencies = [
  "sp-std",
  "wabt",
  "wasmi-validation",
+ "wat 1.0.22",
 ]
 
 [[package]]
@@ -8546,7 +8563,7 @@ dependencies = [
  "target-lexicon",
  "wasmparser 0.52.2",
  "wasmtime-environ",
- "wat",
+ "wat 1.0.14",
  "winapi 0.3.8",
 ]
 
@@ -9719,12 +9736,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "wast"
+version = "21.0.0"
+source = "git+https://github.com/athei/wasm-tools.git?branch=no_std#35d02e5b91746af435762feae6e68e418a28bfe1"
+dependencies = [
+ "nano-leb128",
+ "spin",
+]
+
+[[package]]
 name = "wat"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51a615830ee3e7200b505c441fec09aac2f114deae69df52f215cb828ba112c4"
 dependencies = [
- "wast",
+ "wast 13.0.0",
+]
+
+[[package]]
+name = "wat"
+version = "1.0.22"
+source = "git+https://github.com/athei/wasm-tools.git?branch=no_std#35d02e5b91746af435762feae6e68e418a28bfe1"
+dependencies = [
+ "wast 21.0.0",
 ]
 
 [[package]]
