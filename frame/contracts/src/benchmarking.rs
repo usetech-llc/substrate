@@ -82,6 +82,38 @@ benchmarks! {
             T::Currency::free_balance(&caller),
         )
     }
+
+    call {
+        // Same argument as for instantiate.
+        let n in 1 .. u16::max_value().into();
+        let endowment = T::Currency::minimum_balance() * 1_000.into();
+        let value = T::Currency::minimum_balance() * 100.into();
+        let data = vec![0u8; n as usize];
+        let caller = create_max_funded_user::<T>("caller", 0);
+        let (binary, hash) = load_module!("dummy");
+        let addr = T::DetermineContractAddress::contract_address_for(&hash, &data, &caller);
+        Contracts::<T>::put_code(RawOrigin::Signed(caller.clone()).into(), binary.to_vec())
+            .unwrap();
+        Contracts::<T>::instantiate(
+            RawOrigin::Signed(caller.clone()).into(),
+            endowment,
+            Weight::max_value(),
+            hash,
+            vec![],
+        ).unwrap();
+    }: _(
+            RawOrigin::Signed(caller.clone()),
+            T::Lookup::unlookup(addr),
+            value,
+            Weight::max_value(),
+            data
+        )
+    verify {
+        assert_eq!(
+            BalanceOf::<T>::max_value() - endowment - value,
+            T::Currency::free_balance(&caller),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -94,6 +126,13 @@ mod tests {
     fn instantiate() {
 		ExtBuilder::default().build().execute_with(|| {
 			assert_ok!(test_benchmark_instantiate::<Test>());
+		});
+    }
+
+    #[test]
+    fn call() {
+		ExtBuilder::default().build().execute_with(|| {
+			assert_ok!(test_benchmark_call::<Test>());
 		});
 	}
 }
