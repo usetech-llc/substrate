@@ -91,7 +91,6 @@ trait Crypto: Sized {
 			let mini_secret: MiniSecretKey = MiniSecretKey::from_bytes(&seed.as_ref()[..]).unwrap();
 			let secret: SecretKey = mini_secret.expand(ExpansionMode::Ed25519);
 			let bytes_secret =  secret.to_bytes();
-			
 
 			match output {
 				OutputType::Json => {
@@ -126,6 +125,10 @@ trait Crypto: Sized {
 		} else if let Ok((pair, seed)) = Self::Pair::from_string_with_seed(uri, password) {
 			let public_key = Self::public_from_pair(&pair);
 
+			let mini_secret: MiniSecretKey = MiniSecretKey::from_bytes(&seed.as_ref().unwrap().as_ref()[..]).unwrap();
+			let secret: SecretKey = mini_secret.expand(ExpansionMode::Ed25519);
+			let bytes_secret = secret.to_bytes();
+			
 			match output {
 				OutputType::Json => {
 					let json = json!({
@@ -142,12 +145,14 @@ trait Crypto: Sized {
 					println!("Secret Key URI `{}` is account:\n  \
 						Network ID/version: {}\n  \
 						Secret seed:        {}\n  \
+						64-byte secret:     {}\n  \
 						Public key (hex):   {}\n  \
 						Account ID:         {}\n  \
 						SS58 Address:       {}",
 						uri,
 						String::from(v),
 						if let Some(seed) = seed { format_seed::<Self>(seed) } else { "n/a".into() },
+						format_64b_seed(bytes_secret),
 						format_public_key::<Self>(public_key.clone()),
 						format_account_id::<Self>(public_key),
 						Self::ss58_from_pair(&pair),
@@ -314,6 +319,9 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 					-n, --number <number> 'Number of keys to generate'
 					<pattern> 'Desired pattern'
 				"),
+			SubCommand::with_name("alice")
+			.about("Output keys for Alice address")
+			.args_from_usage(""),
 			SubCommand::with_name("verify")
 				.about("Verify a signature for a message, provided on STDIN, with a given \
 						(public or secret) key")
@@ -491,6 +499,9 @@ where
 			let result = vanity::generate_key::<C>(&desired)?;
 			let formated_seed = format_seed::<C>(result.seed);
 			C::print_from_uri(&formated_seed, None, maybe_network, output);
+		}
+		("alice", Some(_matches)) => {
+			C::print_from_uri("//Alice", password, maybe_network, output);
 		}
 		("transfer", Some(matches)) => {
 			let signer = read_pair::<C>(matches.value_of("from"), password)?;
@@ -712,7 +723,7 @@ fn format_64b_seed(secret: [u8; 64]) -> String {
 	let _ = write!(&mut s, "0x");
 	for i in 0..64 {
 		let byte = secret[i];
-        write!(&mut s, "{:X}", byte).expect("Unable to write");
+        write!(&mut s, "{:02X}", byte).expect("Unable to write");
     }
 
     s
