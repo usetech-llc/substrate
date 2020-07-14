@@ -38,6 +38,9 @@ use std::{
 	convert::{TryInto, TryFrom}, io::{stdin, Read}, str::FromStr, path::PathBuf, fs, fmt,
 };
 
+use schnorrkel::{ExpansionMode, SecretKey, MiniSecretKey};
+use std::fmt::Write;
+
 mod rpc;
 mod vanity;
 
@@ -85,6 +88,11 @@ trait Crypto: Sized {
 		if let Ok((pair, seed)) = Self::Pair::from_phrase(uri, password) {
 			let public_key = Self::public_from_pair(&pair);
 
+			let mini_secret: MiniSecretKey = MiniSecretKey::from_bytes(&seed.as_ref()[..]).unwrap();
+			let secret: SecretKey = mini_secret.expand(ExpansionMode::Ed25519);
+			let bytes_secret =  secret.to_bytes();
+			
+
 			match output {
 				OutputType::Json => {
 					let json = json!({
@@ -101,12 +109,14 @@ trait Crypto: Sized {
 					println!("Secret phrase `{}` is account:\n  \
 						Network ID/version: {}\n  \
 						Secret seed:        {}\n  \
+						64-byte secret:     {}\n  \
 						Public key (hex):   {}\n  \
 						Account ID:         {}\n  \
 						SS58 Address:       {}",
 						uri,
 						String::from(v),
 						format_seed::<Self>(seed),
+						format_64b_seed(bytes_secret),
 						format_public_key::<Self>(public_key.clone()),
 						format_account_id::<Self>(public_key),
 						Self::ss58_from_pair(&pair),
@@ -695,6 +705,17 @@ fn format_signature<C: Crypto>(signature: &SignatureOf<C>) -> String {
 
 fn format_seed<C: Crypto>(seed: SeedOf<C>) -> String {
 	format!("0x{}", HexDisplay::from(&seed.as_ref()))
+}
+
+fn format_64b_seed(secret: [u8; 64]) -> String {
+	let mut s = String::new();
+	let _ = write!(&mut s, "0x");
+	for i in 0..64 {
+		let byte = secret[i];
+        write!(&mut s, "{:X}", byte).expect("Unable to write");
+    }
+
+    s
 }
 
 fn format_public_key<C: Crypto>(public_key: PublicOf<C>) -> String {
