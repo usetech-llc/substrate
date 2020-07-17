@@ -40,7 +40,7 @@ parity-util-mem = { version = "0.6.1", default-features = false, features = ["pr
 futures = { version = "0.3.1", optional = true }
 
 # full crypto
-ed25519-dalek = { git = "https://github.com/dalek-cryptography/ed25519-dalek" tag = "1.0.0-pre.3", package = "ed25519-dalek", default-features = false, features = ["u64_backend", "alloc"], optional = true }
+ed25519-dalek = { git = "https://github.com/dalek-cryptography/ed25519-dalek", tag = "1.0.0-pre.3", package = "ed25519-dalek", default-features = false, features = ["u64_backend", "alloc"], optional = true }
 blake2-rfc = { version = "0.2.18", default-features = false, optional = true }
 tiny-keccak = { version = "2.0.1", features = ["keccak"], optional = true }
 schnorrkel = { version = "0.9.1", features = ["preaudit_deprecated", "u64_backend"], default-features = false, optional = true }
