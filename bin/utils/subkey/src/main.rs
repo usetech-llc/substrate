@@ -322,6 +322,9 @@ fn get_app<'a, 'b>(usage: &'a str) -> App<'a, 'b> {
 			SubCommand::with_name("alice")
 			.about("Output keys for Alice address")
 			.args_from_usage(""),
+			SubCommand::with_name("bob")
+			.about("Output keys for Bob address")
+			.args_from_usage(""),
 			SubCommand::with_name("verify")
 				.about("Verify a signature for a message, provided on STDIN, with a given \
 						(public or secret) key")
@@ -502,6 +505,9 @@ where
 		}
 		("alice", Some(_matches)) => {
 			C::print_from_uri("//Alice", password, maybe_network, output);
+		}
+		("bob", Some(_matches)) => {
+			C::print_from_uri("//Bob", password, maybe_network, output);
 		}
 		("transfer", Some(matches)) => {
 			let signer = read_pair::<C>(matches.value_of("from"), password)?;
