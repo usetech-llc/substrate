@@ -279,7 +279,7 @@ impl DiscoveryBehaviour {
 		addr: Multiaddr
 	) {
 		if !self.allow_non_globals_in_dht && !self.can_add_to_dht(&addr) {
-			log::trace!(target: "sub-libp2p", "Ignoring self-reported non-global address {} from {}.", addr, peer_id);
+			log::info!(target: "sub-libp2p", "Ignoring self-reported non-global address {} from {}.", addr, peer_id);
 			return
 		}
 
@@ -287,7 +287,7 @@ impl DiscoveryBehaviour {
 		for protocol in supported_protocols {
 			for kademlia in self.kademlias.values_mut() {
 				if protocol.as_ref() == kademlia.protocol_name() {
-					log::trace!(
+					log::info!(
 						target: "sub-libp2p",
 						"Adding self-reported address {} from {} to Kademlia DHT {}.",
 						addr, peer_id, String::from_utf8_lossy(kademlia.protocol_name()),
@@ -299,7 +299,7 @@ impl DiscoveryBehaviour {
 		}
 
 		if !added {
-			log::trace!(
+			log::info!(
 				target: "sub-libp2p",
 				"Ignoring self-reported address {} from {} as remote node is not part of any \
 				 Kademlia DHTs supported by the local node.", addr, peer_id,
@@ -468,7 +468,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
 			list.extend(list_to_filter);
 		}
 
-		trace!(target: "sub-libp2p", "Addresses of {:?}: {:?}", peer_id, list);
+		info!(target: "sub-libp2p", "Addresses of {:?}: {:?}", peer_id, list);
 
 		list
 	}
@@ -647,7 +647,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
 										HexDisplay::from(&key), peers.len());
 								},
 								Ok(ok) => {
-									trace!(target: "sub-libp2p",
+									info!(target: "sub-libp2p",
 										"Libp2p => Query for {:?} yielded {:?} results",
 										HexDisplay::from(&ok.key), ok.peers.len());
 									if ok.peers.is_empty() && self.num_connections != 0 {
@@ -668,7 +668,7 @@ impl NetworkBehaviour for DiscoveryBehaviour {
 									DiscoveryOut::ValueFound(results, stats.duration().unwrap_or_else(Default::default))
 								}
 								Err(e @ libp2p::kad::GetRecordError::NotFound { .. }) => {
-									trace!(target: "sub-libp2p",
+									info!(target: "sub-libp2p",
 										"Libp2p => Failed to get record: {:?}", e);
 									DiscoveryOut::ValueNotFound(e.into_key(), stats.duration().unwrap_or_else(Default::default))
 								}

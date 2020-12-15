@@ -1507,7 +1507,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					this.event_streams.send(Event::Dht(event));
 				},
 				Poll::Ready(SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established }) => {
-					trace!(target: "sub-libp2p", "Libp2p => Connected({:?})", peer_id);
+					info!(target: "sub-libp2p", "Libp2p => Connected({:?})", peer_id);
 
 					if let Some(metrics) = this.metrics.as_ref() {
 						let direction = match endpoint {
@@ -1522,7 +1522,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::ConnectionClosed { peer_id, cause, endpoint, num_established }) => {
-					trace!(target: "sub-libp2p", "Libp2p => Disconnected({:?}, {:?})", peer_id, cause);
+					info!(target: "sub-libp2p", "Libp2p => Disconnected({:?}, {:?})", peer_id, cause);
 					if let Some(metrics) = this.metrics.as_ref() {
 						let direction = match endpoint {
 							ConnectedPoint::Dialer { .. } => "out",
@@ -1552,7 +1552,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::NewListenAddr(addr)) => {
-					trace!(target: "sub-libp2p", "Libp2p => NewListenAddr({})", addr);
+					info!(target: "sub-libp2p", "Libp2p => NewListenAddr({})", addr);
 					if let Some(metrics) = this.metrics.as_ref() {
 						metrics.listeners_local_addresses.inc();
 					}
@@ -1564,7 +1564,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::UnreachableAddr { peer_id, address, error, .. }) => {
-					trace!(
+					info!(
 						target: "sub-libp2p", "Libp2p => Failed to reach {:?} through {:?}: {}",
 						peer_id,
 						address,
@@ -1645,7 +1645,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::ListenerError { error }) => {
-					trace!(target: "sub-libp2p", "Libp2p => ListenerError: {}", error);
+					info!(target: "sub-libp2p", "Libp2p => ListenerError: {}", error);
 					if let Some(metrics) = this.metrics.as_ref() {
 						metrics.listeners_errors_total.inc();
 					}

@@ -65,6 +65,9 @@ struct Opt {
 	#[structopt(long)]
 	transactions: Option<usize>,
 
+	#[structopt(flatten)]
+	log_rotation_opt: sc_cli::LogRotationOpt,
+
 	/// Mode
 	///
 	/// "regular" for regular benchmark
@@ -79,6 +82,7 @@ fn main() {
 	let opt = Opt::from_args();
 
 	if !opt.json {
+		sc_cli::init_logger("", &opt.log_rotation_opt).expect("init_logger should not fail.");
 		sp_tracing::try_init_simple();
 	}
 

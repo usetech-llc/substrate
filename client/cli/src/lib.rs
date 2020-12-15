@@ -27,6 +27,7 @@ mod config;
 mod error;
 mod params;
 mod runner;
+mod logger;
 
 pub use arg_enums::*;
 pub use commands::*;
@@ -44,6 +45,7 @@ use structopt::{
 	StructOpt,
 };
 use tracing_subscriber::layer::SubscriberExt;
+pub use crate::logger::{init_logger, LogRotationOpt};
 
 /// Substrate client CLI
 ///
@@ -226,76 +228,76 @@ pub trait SubstrateCli: Sized {
 	fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion;
 }
 
-/// Initialize the global logger
-///
-/// This sets various global logging and tracing instances and thus may only be called once.
-pub fn init_logger(
-	pattern: &str,
-	tracing_receiver: sc_tracing::TracingReceiver,
-	tracing_targets: Option<String>,
-) -> std::result::Result<(), String> {
-	if let Err(e) = tracing_log::LogTracer::init() {
-		return Err(format!(
-			"Registering Substrate logger failed: {:}!", e
-		))
-	}
+// Initialize the global logger
+//
+// This sets various global logging and tracing instances and thus may only be called once.
+// pub fn init_logger(
+// 	pattern: &str,
+// 	tracing_receiver: sc_tracing::TracingReceiver,
+// 	tracing_targets: Option<String>,
+// ) -> std::result::Result<(), String> {
+// 	if let Err(e) = tracing_log::LogTracer::init() {
+// 		return Err(format!(
+// 			"Registering Substrate logger failed: {:}!", e
+// 		))
+// 	}
 
-	let mut env_filter = tracing_subscriber::EnvFilter::default()
-		// Disable info logging by default for some modules.
-		.add_directive("ws=off".parse().expect("provided directive is valid"))
-		.add_directive("yamux=off".parse().expect("provided directive is valid"))
-		.add_directive("cranelift_codegen=off".parse().expect("provided directive is valid"))
-		// Set warn logging by default for some modules.
-		.add_directive("cranelife_wasm=warn".parse().expect("provided directive is valid"))
-		.add_directive("hyper=warn".parse().expect("provided directive is valid"))
-		// Always log the special target `sc_tracing`, overrides global level.
-		.add_directive("sc_tracing=trace".parse().expect("provided directive is valid"))
-		// Enable info for others.
-		.add_directive(tracing_subscriber::filter::LevelFilter::INFO.into());
+// 	let mut env_filter = tracing_subscriber::EnvFilter::default()
+// 		// Disable info logging by default for some modules.
+// 		.add_directive("ws=off".parse().expect("provided directive is valid"))
+// 		.add_directive("yamux=off".parse().expect("provided directive is valid"))
+// 		.add_directive("cranelift_codegen=off".parse().expect("provided directive is valid"))
+// 		// Set warn logging by default for some modules.
+// 		.add_directive("cranelife_wasm=warn".parse().expect("provided directive is valid"))
+// 		.add_directive("hyper=warn".parse().expect("provided directive is valid"))
+// 		// Always log the special target `sc_tracing`, overrides global level.
+// 		.add_directive("sc_tracing=trace".parse().expect("provided directive is valid"))
+// 		// Enable info for others.
+// 		.add_directive(tracing_subscriber::filter::LevelFilter::INFO.into());
 
-	if let Ok(lvl) = std::env::var("RUST_LOG") {
-		if lvl != "" {
-			// We're not sure if log or tracing is available at this moment, so silently ignore the
-			// parse error.
-			if let Ok(directive) = lvl.parse() {
-				env_filter = env_filter.add_directive(directive);
-			}
-		}
-	}
+// 	if let Ok(lvl) = std::env::var("RUST_LOG") {
+// 		if lvl != "" {
+// 			// We're not sure if log or tracing is available at this moment, so silently ignore the
+// 			// parse error.
+// 			if let Ok(directive) = lvl.parse() {
+// 				env_filter = env_filter.add_directive(directive);
+// 			}
+// 		}
+// 	}
 
-	if pattern != "" {
-		// We're not sure if log or tracing is available at this moment, so silently ignore the
-		// parse error.
-		if let Ok(directive) = pattern.parse() {
-			env_filter = env_filter.add_directive(directive);
-		}
-	}
+// 	if pattern != "" {
+// 		// We're not sure if log or tracing is available at this moment, so silently ignore the
+// 		// parse error.
+// 		if let Ok(directive) = pattern.parse() {
+// 			env_filter = env_filter.add_directive(directive);
+// 		}
+// 	}
 
-	let isatty = atty::is(atty::Stream::Stderr);
-	let enable_color = isatty;
+// 	let isatty = atty::is(atty::Stream::Stderr);
+// 	let enable_color = isatty;
 
-	let subscriber = tracing_subscriber::FmtSubscriber::builder()
-		.with_env_filter(env_filter)
-		.with_target(false)
-		.with_ansi(enable_color)
-		.with_writer(std::io::stderr)
-		.compact()
-		.finish();
+// 	let subscriber = tracing_subscriber::FmtSubscriber::builder()
+// 		.with_env_filter(env_filter)
+// 		.with_target(false)
+// 		.with_ansi(enable_color)
+// 		.with_writer(std::io::stderr)
+// 		.compact()
+// 		.finish();
 
-	if let Some(tracing_targets) = tracing_targets {
-		let profiling = sc_tracing::ProfilingLayer::new(tracing_receiver, &tracing_targets);
+// 	if let Some(tracing_targets) = tracing_targets {
+// 		let profiling = sc_tracing::ProfilingLayer::new(tracing_receiver, &tracing_targets);
 
-		if let Err(e) = tracing::subscriber::set_global_default(subscriber.with(profiling)) {
-			return Err(format!(
-				"Registering Substrate tracing subscriber failed: {:}!", e
-			))
-		}
-	} else {
-		if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
-			return Err(format!(
-				"Registering Substrate tracing subscriber  failed: {:}!", e
-			))
-		}
-	}
-	Ok(())
-}
+// 		if let Err(e) = tracing::subscriber::set_global_default(subscriber.with(profiling)) {
+// 			return Err(format!(
+// 				"Registering Substrate tracing subscriber failed: {:}!", e
+// 			))
+// 		}
+// 	} else {
+// 		if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
+// 			return Err(format!(
+// 				"Registering Substrate tracing subscriber  failed: {:}!", e
+// 			))
+// 		}
+// 	}
+// 	Ok(())
+// }

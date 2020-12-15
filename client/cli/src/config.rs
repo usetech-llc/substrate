@@ -21,10 +21,11 @@
 use crate::arg_enums::Database;
 use crate::error::Result;
 use crate::{
-	init_logger, DatabaseParams, ImportParams, KeystoreParams, NetworkParams, NodeKeyParams,
+	DatabaseParams, ImportParams, KeystoreParams, NetworkParams, NodeKeyParams,
 	OffchainWorkerParams, PruningParams, SharedParams, SubstrateCli,
 };
-use log::warn;
+use crate::logger::{LogRotationOpt, init_logger};
+// use log::warn;
 use names::{Generator, Name};
 use sc_client_api::execution_extensions::ExecutionStrategies;
 use sc_service::config::{
@@ -528,6 +529,11 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 		Ok(self.shared_params().log_filters().join(","))
 	}
 
+	/// By default this is retrieved from `SharedParams`.
+	fn log_rotation_opt(&self) -> Result<&LogRotationOpt> {
+		Ok(self.shared_params().log_rotation_opt())
+	}
+
 	/// Initialize substrate. This must be done only once per process.
 	///
 	/// This method:
@@ -539,16 +545,23 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 		let logger_pattern = self.log_filters()?;
 		let tracing_receiver = self.tracing_receiver()?;
 		let tracing_targets = self.tracing_targets()?;
+		let log_rotation_opt = self.log_rotation_opt()?;
 
 		sp_panic_handler::set(&C::support_url(), &C::impl_version());
 
-		if let Err(e) = init_logger(&logger_pattern, tracing_receiver, tracing_targets) {
+		// if let Err(e) = init_logger(&logger_pattern, tracing_receiver, tracing_targets) {
+		// 	log::warn!("💬 Problem initializing global logging framework: {:}", e)
+		// }
+
+		// init_logger(&logger_pattern, log_rotation_opt)?;
+
+		if let Err(e) = init_logger(&logger_pattern, log_rotation_opt) {
 			log::warn!("💬 Problem initializing global logging framework: {:}", e)
 		}
 
 		if let Some(new_limit) = fdlimit::raise_fd_limit() {
 			if new_limit < RECOMMENDED_OPEN_FILE_DESCRIPTOR_LIMIT {
-				warn!(
+				log::warn!(
 					"Low open file descriptor limit configured for the process. \
 					 Current value: {:?}, recommended value: {:?}.",
 					new_limit, RECOMMENDED_OPEN_FILE_DESCRIPTOR_LIMIT,
