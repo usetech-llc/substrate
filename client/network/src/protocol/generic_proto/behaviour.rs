@@ -571,13 +571,13 @@ impl GenericProto {
 			Some(sink) => sink
 		};
 
-		trace!(
+		info!(
 			target: "sub-libp2p",
 			"External API => Notification({:?}, {:?})",
 			target,
 			protocol_name,
 		);
-		trace!(target: "sub-libp2p", "Handler({:?}) <= Packet", target);
+		info!(target: "sub-libp2p", "Handler({:?}) <= Packet", target);
 		notifs_sink.send_sync_notification(
 			protocol_name,
 			message
@@ -1116,7 +1116,7 @@ impl NetworkBehaviour for GenericProto {
 
 		} else {
 			// The peer is not in our list.
-			trace!(target: "sub-libp2p", "Libp2p => Dial failure for {:?}", peer_id);
+			info!(target: "sub-libp2p", "Libp2p => Dial failure for {:?}", peer_id);
 		}
 	}
 
@@ -1330,7 +1330,7 @@ impl NetworkBehaviour for GenericProto {
 						"Handler({:?}) => Secondary connection opened custom protocol",
 						source
 					);
-					trace!(target: "sub-libp2p", "External API <= Message({:?})", source);
+					info!(target: "sub-libp2p", "External API <= Message({:?})", source);
 					let event = GenericProtoOut::LegacyMessage {
 						peer_id: source,
 						message: From::from(&received_handshake[..]),
@@ -1341,8 +1341,8 @@ impl NetworkBehaviour for GenericProto {
 
 			NotifsHandlerOut::CustomMessage { message } => {
 				debug_assert!(self.is_open(&source));
-				trace!(target: "sub-libp2p", "Handler({:?}) => Message", source);
-				trace!(target: "sub-libp2p", "External API <= Message({:?})", source);
+				info!(target: "sub-libp2p", "Handler({:?}) => Message", source);
+				info!(target: "sub-libp2p", "External API <= Message({:?})", source);
 				let event = GenericProtoOut::LegacyMessage {
 					peer_id: source,
 					message,
@@ -1353,13 +1353,13 @@ impl NetworkBehaviour for GenericProto {
 
 			NotifsHandlerOut::Notification { protocol_name, message } => {
 				debug_assert!(self.is_open(&source));
-				trace!(
+				info!(
 					target: "sub-libp2p",
 					"Handler({:?}) => Notification({:?})",
 					source,
 					protocol_name,
 				);
-				trace!(target: "sub-libp2p", "External API <= Message({:?}, {:?})", protocol_name, source);
+				info!(target: "sub-libp2p", "External API <= Message({:?}, {:?})", protocol_name, source);
 				let event = GenericProtoOut::Notification {
 					peer_id: source,
 					protocol_name,

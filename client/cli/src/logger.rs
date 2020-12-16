@@ -33,7 +33,7 @@ type IoResult = std::result::Result<(), std::io::Error>;
 
 /// Default size used for rotation. Basically unlimited.
 const DEFAULT_ROTATION_SIZE: u64 = u64::MAX;
-// const DEFAULT_ROTATION_SIZE: u64 = 250000000;
+// const DEFAULT_ROTATION_SIZE: u64 = 25_000_000;
 
 /// Options for log rotation.
 #[derive(Debug, StructOpt)]
@@ -187,6 +187,7 @@ pub fn init_logger(pattern: &str, log_rotation_opt: &LogRotationOpt) -> Result<(
 		.format_for_stderr(colored_fmt)
 		.format_for_stdout(colored_fmt)
 		.rotate(criterion, naming, cleanup); // Won't get used if log_directory has not been specified.
+
 
 	let logger = match (log_rotation_opt.log_directory.as_ref(), isatty_stderr) {
 		// Only log to stderr using colored format; nothing to file, nothing to stdout.

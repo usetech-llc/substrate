@@ -1593,7 +1593,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				}
 				Poll::Ready(SwarmEvent::Dialing(peer_id)) =>
-					trace!(target: "sub-libp2p", "Libp2p => Dialing({:?})", peer_id),
+					info!(target: "sub-libp2p", "Libp2p => Dialing({:?})", peer_id),
 				Poll::Ready(SwarmEvent::IncomingConnection { local_addr, send_back_addr }) => {
 					trace!(target: "sub-libp2p", "Libp2p => IncomingConnection({},{}))",
 						local_addr, send_back_addr);
@@ -1602,7 +1602,7 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error }) => {
-					trace!(target: "sub-libp2p", "Libp2p => IncomingConnectionError({},{}): {}",
+					info!(target: "sub-libp2p", "Libp2p => IncomingConnectionError({},{}): {}",
 						local_addr, send_back_addr, error);
 					if let Some(metrics) = this.metrics.as_ref() {
 						let reason = match error {
@@ -1616,14 +1616,14 @@ impl<B: BlockT + 'static, H: ExHashT> Future for NetworkWorker<B, H> {
 					}
 				},
 				Poll::Ready(SwarmEvent::BannedPeer { peer_id, endpoint }) => {
-					trace!(target: "sub-libp2p", "Libp2p => BannedPeer({}). Connected via {:?}.",
+					info!(target: "sub-libp2p", "Libp2p => BannedPeer({}). Connected via {:?}.",
 						peer_id, endpoint);
 					if let Some(metrics) = this.metrics.as_ref() {
 						metrics.incoming_connections_errors_total.with_label_values(&["banned"]).inc();
 					}
 				},
 				Poll::Ready(SwarmEvent::UnknownPeerUnreachableAddr { address, error }) =>
-					trace!(target: "sub-libp2p", "Libp2p => UnknownPeerUnreachableAddr({}): {}",
+					info!(target: "sub-libp2p", "Libp2p => UnknownPeerUnreachableAddr({}): {}",
 						address, error),
 				Poll::Ready(SwarmEvent::ListenerClosed { reason, addresses }) => {
 					if let Some(metrics) = this.metrics.as_ref() {
