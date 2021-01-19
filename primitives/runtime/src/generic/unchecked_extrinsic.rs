@@ -199,6 +199,8 @@ impl<Call, Extra> Encode for SignedPayload<Call, Extra> where
 	/// Payloads longer than 256 bytes are going to be `blake2_256`-hashed.
 	fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
 		self.0.using_encoded(|payload| {
+			#[cfg(feature = "std")]
+			log::info!(sp_std::fmt!("Sign payload: {:?}", payload));
 			if payload.len() > 256 {
 				f(&blake2_256(payload)[..])
 			} else {

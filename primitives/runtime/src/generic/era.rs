@@ -64,6 +64,8 @@ impl Era {
 	/// does not exceed `BlockHashCount` parameter passed to `system` module, since that
 	/// prunes old blocks and renders transactions immediately invalid.
 	pub fn mortal(period: u64, current: u64) -> Self {
+		#[cfg(feature = "std")]
+		log::info!(sp_std::fmt!("Creating era from period {:?} and current {:?}", Era::Mortal(period, phase)));
 		let period = period.checked_next_power_of_two()
 			.unwrap_or(1 << 16)
 			.max(4)
@@ -72,6 +74,8 @@ impl Era {
 		let quantize_factor = (period >> 12).max(1);
 		let quantized_phase = phase / quantize_factor * quantize_factor;
 
+		#[cfg(feature = "std")]
+		log::info!(sp_std::fmt!("Created era from {:?}", Era::Mortal(period, phase)));
 		Era::Mortal(period, quantized_phase)
 	}
 
@@ -111,9 +115,15 @@ impl Encode for Era {
 		match self {
 			Era::Immortal => output.push_byte(0),
 			Era::Mortal(period, phase) => {
+				#[cfg(feature = "std")]
+				log::info!(sp_std::fmt!("Encoding {:?}", Era::Mortal(period, phase)));
 				let quantize_factor = (*period as u64 >> 12).max(1);
 				let encoded = (period.trailing_zeros() - 1).max(1).min(15) as u16 | ((phase / quantize_factor) << 4) as u16;
 				output.push(&encoded);
+				let quantize_factor = (*period as u64 >> 12).max(1);
+				let encoded = (period.trailing_zeros() - 1).max(1).min(15) as u16 | ((phase / quantize_factor) << 4) as u16;
+				#[cfg(feature = "std")]
+				log::info!(sp_std::fmt!("Encoding quantize_factor: {:?}, encoded: {:?}", quantize_factor, encoded));
 			}
 		}
 	}
@@ -132,6 +142,8 @@ impl Decode for Era {
 			let quantize_factor = (period >> 12).max(1);
 			let phase = (encoded >> 4) * quantize_factor;
 			if period >= 4 && phase < period {
+				#[cfg(feature = "std")]
+				log::info!(sp_std::fmt!("DECODED ERA {:?}", Era::Mortal(period, phase)));
 				Ok(Era::Mortal(period, phase))
 			} else {
 				Err("Invalid period and phase".into())
