@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2017-2020 Parity Technologies (UK) Ltd.
+// Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +29,8 @@ use codec::{Encode, Decode};
 use blake2_rfc;
 #[cfg(feature = "full_crypto")]
 use core::convert::TryFrom;
+#[cfg(feature = "full_crypto")]
+use ed25519_dalek::{Signer as _, Verifier as _};
 #[cfg(feature = "std")]
 use substrate_bip39::seed_from_entropy;
 #[cfg(feature = "std")]
@@ -333,15 +335,19 @@ pub struct LocalizedSignature {
 
 /// An error type for SS58 decoding.
 #[cfg(feature = "std")]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, thiserror::Error)]
 pub enum PublicError {
 	/// Bad alphabet.
+	#[error("Base 58 requirement is violated")]
 	BadBase58,
 	/// Bad length.
+	#[error("Length is bad")]
 	BadLength,
 	/// Unknown version.
+	#[error("Unknown version")]
 	UnknownVersion,
 	/// Invalid checksum.
+	#[error("Invalid checksum")]
 	InvalidChecksum,
 }
 
@@ -513,7 +519,7 @@ impl TraitPair for Pair {
 			Err(_) => return false,
 		};
 
-		let sig = match ed25519_dalek::Signature::from_bytes(sig) {
+		let sig = match ed25519_dalek::Signature::try_from(sig) {
 			Ok(s) => s,
 			Err(_) => return false
 		};

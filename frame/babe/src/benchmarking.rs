@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2020 Parity Technologies (UK) Ltd.
+// Copyright (C) 2020-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,16 +17,12 @@
 
 //! Benchmarks for the BABE Pallet.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use super::*;
 use frame_benchmarking::benchmarks;
 
 type Header = sp_runtime::generic::Header<u64, sp_runtime::traits::BlakeTwo256>;
 
 benchmarks! {
-	_ {	}
-
 	check_equivocation_proof {
 		let x in 0 .. 1;
 

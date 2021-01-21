@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2018-2020 Parity Technologies (UK) Ltd.
+// Copyright (C) 2018-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 use codec::{Encode, Joiner};
 use frame_support::{
-	StorageValue, StorageMap,
+	StorageValue,
 	traits::Currency,
 	weights::{GetDispatchInfo, constants::ExtrinsicBaseWeight, IdentityFee, WeightToFeePolynomial},
 };
@@ -36,7 +36,7 @@ use self::common::{*, sign};
 
 #[test]
 fn fee_multiplier_increases_and_decreases_on_big_weight() {
-	let mut t = new_test_ext(COMPACT_CODE, false);
+	let mut t = new_test_ext(compact_code_unwrap(), false);
 
 	// initial fee multiplier must be one.
 	let mut prev_multiplier = Multiplier::one();
@@ -45,7 +45,7 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 		assert_eq!(TransactionPayment::next_fee_multiplier(), prev_multiplier);
 	});
 
-	let mut tt = new_test_ext(COMPACT_CODE, false);
+	let mut tt = new_test_ext(compact_code_unwrap(), false);
 
 	// big one in terms of weight.
 	let block1 = construct_block(
@@ -121,6 +121,15 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 	});
 }
 
+fn new_account_info(free_dollars: u128) -> Vec<u8> {
+	frame_system::AccountInfo {
+		nonce: 0u32,
+		consumers: 0,
+		providers: 0,
+		data: (free_dollars * DOLLARS, 0 * DOLLARS, 0 * DOLLARS, 0 * DOLLARS),
+	}.encode()
+}
+
 #[test]
 fn transaction_fee_is_correct() {
 	// This uses the exact values of substrate-node.
@@ -130,15 +139,9 @@ fn transaction_fee_is_correct() {
 	//   - 1 MILLICENTS in substrate node.
 	//   - 1 milli-dot based on current polkadot runtime.
 	// (this baed on assigning 0.1 CENT to the cheapest tx with `weight = 100`)
-	let mut t = new_test_ext(COMPACT_CODE, false);
-	t.insert(
-		<frame_system::Account<Runtime>>::hashed_key_for(alice()),
-		(0u32, 0u8, 100 * DOLLARS, 0 * DOLLARS, 0 * DOLLARS, 0 * DOLLARS).encode()
-	);
-	t.insert(
-		<frame_system::Account<Runtime>>::hashed_key_for(bob()),
-		(0u32, 0u8, 10 * DOLLARS, 0 * DOLLARS, 0 * DOLLARS, 0 * DOLLARS).encode()
-	);
+	let mut t = new_test_ext(compact_code_unwrap(), false);
+	t.insert(<frame_system::Account<Runtime>>::hashed_key_for(alice()), new_account_info(100));
+	t.insert(<frame_system::Account<Runtime>>::hashed_key_for(bob()), new_account_info(10));
 	t.insert(
 		<pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
 		(110 * DOLLARS).encode()
@@ -209,9 +212,9 @@ fn block_weight_capacity_report() {
 	use node_primitives::Index;
 
 	// execution ext.
-	let mut t = new_test_ext(COMPACT_CODE, false);
+	let mut t = new_test_ext(compact_code_unwrap(), false);
 	// setup ext.
-	let mut tt = new_test_ext(COMPACT_CODE, false);
+	let mut tt = new_test_ext(compact_code_unwrap(), false);
 
 	let factor = 50;
 	let mut time = 10;
@@ -276,9 +279,9 @@ fn block_length_capacity_report() {
 	use node_primitives::Index;
 
 	// execution ext.
-	let mut t = new_test_ext(COMPACT_CODE, false);
+	let mut t = new_test_ext(compact_code_unwrap(), false);
 	// setup ext.
-	let mut tt = new_test_ext(COMPACT_CODE, false);
+	let mut tt = new_test_ext(compact_code_unwrap(), false);
 
 	let factor = 256 * 1024;
 	let mut time = 10;

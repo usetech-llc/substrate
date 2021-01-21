@@ -1,31 +1,33 @@
-// Copyright 2019-2020 Parity Technologies (UK) Ltd.
 // This file is part of Substrate.
 
-// Substrate is free software: you can redistribute it and/or modify
+// Copyright (C) 2019-2021 Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
+
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Substrate is distributed in the hope that it will be useful,
+// This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! Defines the compiled Wasm runtime that uses Wasmtime internally.
 
 use crate::host::HostState;
 use crate::imports::{Imports, resolve_imports};
-use crate::instance_wrapper::{ModuleWrapper, InstanceWrapper, GlobalsSnapshot};
+use crate::instance_wrapper::{ModuleWrapper, InstanceWrapper, GlobalsSnapshot, EntryPoint};
 use crate::state_holder;
 
 use std::rc::Rc;
 use std::sync::Arc;
 use sc_executor_common::{
-	error::{Error, Result, WasmError},
-	wasm_runtime::{WasmModule, WasmInstance},
+	error::{Result, WasmError},
+	wasm_runtime::{WasmModule, WasmInstance, InvokeMethod},
 };
 use sp_allocator::FreeingBumpHeapAllocator;
 use sp_runtime_interface::unpack_ptr_and_len;
@@ -39,13 +41,17 @@ pub struct WasmtimeRuntime {
 	heap_pages: u32,
 	allow_missing_func_imports: bool,
 	host_functions: Vec<&'static dyn Function>,
+	engine: Engine,
 }
 
 impl WasmModule for WasmtimeRuntime {
 	fn new_instance(&self) -> Result<Box<dyn WasmInstance>> {
+		let store = Store::new(&self.engine);
+
 		// Scan all imports, find the matching host functions, and create stubs that adapt arguments
 		// and results.
 		let imports = resolve_imports(
+			&store,
 			self.module_wrapper.module(),
 			&self.host_functions,
 			self.heap_pages,
@@ -53,11 +59,12 @@ impl WasmModule for WasmtimeRuntime {
 		)?;
 
 		let instance_wrapper =
-			InstanceWrapper::new(&self.module_wrapper, &imports, self.heap_pages)?;
+			InstanceWrapper::new(&store, &self.module_wrapper, &imports, self.heap_pages)?;
 		let heap_base = instance_wrapper.extract_heap_base()?;
 		let globals_snapshot = GlobalsSnapshot::take(&instance_wrapper)?;
 
 		Ok(Box::new(WasmtimeInstance {
+			store,
 			instance_wrapper: Rc::new(instance_wrapper),
 			module_wrapper: Arc::clone(&self.module_wrapper),
 			imports,
@@ -71,6 +78,7 @@ impl WasmModule for WasmtimeRuntime {
 /// A `WasmInstance` implementation that reuses compiled module and spawns instances
 /// to execute the compiled code.
 pub struct WasmtimeInstance {
+	store: Store,
 	module_wrapper: Arc<ModuleWrapper>,
 	instance_wrapper: Rc<InstanceWrapper>,
 	globals_snapshot: GlobalsSnapshot,
@@ -84,7 +92,7 @@ pub struct WasmtimeInstance {
 unsafe impl Send for WasmtimeInstance {}
 
 impl WasmInstance for WasmtimeInstance {
-	fn call(&self, method: &str, data: &[u8]) -> Result<Vec<u8>> {
+	fn call(&self, method: InvokeMethod, data: &[u8]) -> Result<Vec<u8>> {
 		let entrypoint = self.instance_wrapper.resolve_entrypoint(method)?;
 		let allocator = FreeingBumpHeapAllocator::new(self.heap_base);
 
@@ -106,7 +114,7 @@ impl WasmInstance for WasmtimeInstance {
 	}
 
 	fn get_global_const(&self, name: &str) -> Result<Option<Value>> {
-		let instance = InstanceWrapper::new(&self.module_wrapper, &self.imports, self.heap_pages)?;
+		let instance = InstanceWrapper::new(&self.store, &self.module_wrapper, &self.imports, self.heap_pages)?;
 		instance.get_global_val(name)
 	}
 }
@@ -124,9 +132,8 @@ pub fn create_runtime(
 	config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
 
 	let engine = Engine::new(&config);
-	let store = Store::new(&engine);
 
-	let module_wrapper = ModuleWrapper::new(&store, code)
+	let module_wrapper = ModuleWrapper::new(&engine, code)
 		.map_err(|e| WasmError::Other(format!("cannot create module: {}", e)))?;
 
 	Ok(WasmtimeRuntime {
@@ -134,34 +141,21 @@ pub fn create_runtime(
 		heap_pages: heap_pages as u32,
 		allow_missing_func_imports,
 		host_functions,
+		engine,
 	})
 }
 
 fn perform_call(
 	data: &[u8],
 	instance_wrapper: Rc<InstanceWrapper>,
-	entrypoint: wasmtime::Func,
+	entrypoint: EntryPoint,
 	mut allocator: FreeingBumpHeapAllocator,
 ) -> Result<Vec<u8>> {
 	let (data_ptr, data_len) = inject_input_data(&instance_wrapper, &mut allocator, data)?;
 
 	let host_state = HostState::new(allocator, instance_wrapper.clone());
-	let ret = state_holder::with_initialized_state(&host_state, || {
-		match entrypoint.call(&[
-			wasmtime::Val::I32(u32::from(data_ptr) as i32),
-			wasmtime::Val::I32(u32::from(data_len) as i32),
-		]) {
-			Ok(results) => {
-				let retval = results[0].unwrap_i64() as u64;
-				Ok(unpack_ptr_and_len(retval))
-			}
-			Err(trap) => {
-				return Err(Error::from(format!(
-					"Wasm execution trapped: {}",
-					trap
-				)));
-			}
-		}
+	let ret = state_holder::with_initialized_state(&host_state, || -> Result<_> {
+		Ok(unpack_ptr_and_len(entrypoint.call(data_ptr, data_len)?))
 	});
 	let (output_ptr, output_len) = ret?;
 	let output = extract_output_data(&instance_wrapper, output_ptr, output_len)?;

@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2018-2020 Parity Technologies (UK) Ltd.
+// Copyright (C) 2018-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -36,7 +36,8 @@ use sp_runtime::{
 };
 use sp_transaction_pool::{error, PoolStatus};
 use wasm_timer::Instant;
-use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
+use futures::channel::mpsc::{channel, Sender};
+use retain_mut::RetainMut;
 
 use crate::base_pool::PruneStatus;
 use crate::pool::{
@@ -98,7 +99,7 @@ pub struct ValidatedPool<B: ChainApi> {
 		ExtrinsicHash<B>,
 		ExtrinsicFor<B>,
 	>>,
-	import_notification_sinks: Mutex<Vec<TracingUnboundedSender<ExtrinsicHash<B>>>>,
+	import_notification_sinks: Mutex<Vec<Sender<ExtrinsicHash<B>>>>,
 	rotator: PoolRotator<ExtrinsicHash<B>>,
 }
 
@@ -186,7 +187,19 @@ impl<B: ChainApi> ValidatedPool<B> {
 
 				if let base::Imported::Ready { ref hash, .. } = imported {
 					self.import_notification_sinks.lock()
-						.retain(|sink| sink.unbounded_send(hash.clone()).is_ok());
+						.retain_mut(|sink| {
+							match sink.try_send(hash.clone()) {
+								Ok(()) => true,
+								Err(e) => {
+									if e.is_full() {
+										log::warn!(target: "txpool", "[{:?}] Trying to notify an import but the channel is full", hash);
+										true
+									} else {
+										false
+									}
+								},
+							}
+						});
 				}
 
 				let mut listener = self.listener.write();
@@ -273,7 +286,7 @@ impl<B: ChainApi> ValidatedPool<B> {
 	/// Transactions that are missing from the pool are not submitted.
 	pub fn resubmit(&self, mut updated_transactions: HashMap<ExtrinsicHash<B>, ValidatedTransactionFor<B>>) {
 		#[derive(Debug, Clone, Copy, PartialEq)]
-		enum Status { Future, Ready, Failed, Dropped };
+		enum Status { Future, Ready, Failed, Dropped }
 
 		let (mut initial_statuses, final_statuses) = {
 			let mut pool = self.pool.write();
@@ -529,7 +542,9 @@ impl<B: ChainApi> ValidatedPool<B> {
 	/// Consumers of this stream should use the `ready` method to actually get the
 	/// pending transactions in the right order.
 	pub fn import_notification_stream(&self) -> EventStream<ExtrinsicHash<B>> {
-		let (sink, stream) = tracing_unbounded("mpsc_import_notifications");
+		const CHANNEL_BUFFER_SIZE: usize = 1024;
+
+		let (sink, stream) = channel(CHANNEL_BUFFER_SIZE);
 		self.import_notification_sinks.lock().push(sink);
 		stream
 	}

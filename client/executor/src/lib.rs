@@ -1,6 +1,6 @@
 // This file is part of Substrate.
 
-// Copyright (C) 2017-2020 Parity Technologies (UK) Ltd.
+// Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -65,7 +65,7 @@ pub trait RuntimeInfo {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sc_runtime_test::WASM_BINARY;
+	use sc_runtime_test::wasm_binary_unwrap;
 	use sp_io::TestExternalities;
 	use sp_wasm_interface::HostFunctions;
 	use sp_core::traits::CallInWasm;
@@ -82,7 +82,7 @@ mod tests {
 			8,
 		);
 		let res = executor.call_in_wasm(
-			&WASM_BINARY[..],
+			&wasm_binary_unwrap()[..],
 			None,
 			"test_empty_return",
 			&[],
